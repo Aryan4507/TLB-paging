@@ -1,0 +1,818 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Paging TLB Hit/Miss Analyzer</title>
+
+<style>
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    padding: 20px;
+    font-family: Arial, sans-serif;
+    background: #f3f5fa;
+    color: #26334d;
+}
+
+main {
+    max-width: 1200px;
+    margin: auto;
+}
+
+header {
+    background: #344e86;
+    color: white;
+    padding: 24px;
+    text-align: center;
+    border-radius: 10px;
+    margin-bottom: 20px;
+}
+
+header h1 {
+    margin-top: 0;
+    margin-bottom: 10px;
+}
+
+.project-title {
+    font-size: 20px;
+    margin: 0 0 14px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid #ffffff55;
+}
+
+section, .result-card {
+    background: white;
+    padding: 20px;
+    margin-bottom: 20px;
+    border-radius: 10px;
+    box-shadow: 0 2px 8px #0000000d;
+}
+
+h2 {
+    color: #344e86;
+    margin-top: 0;
+}
+
+.inputs {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 15px;
+}
+
+label {
+    display: block;
+    font-weight: bold;
+    margin-bottom: 7px;
+}
+
+input {
+    width: 100%;
+    padding: 11px;
+    border: 1px solid #cbd3e1;
+    border-radius: 5px;
+    font-size: 15px;
+}
+
+.buttons {
+    margin-top: 18px;
+}
+
+button {
+    padding: 11px 17px;
+    border: 0;
+    border-radius: 5px;
+    cursor: pointer;
+    margin-right: 8px;
+    margin-bottom: 5px;
+    background: #344e86;
+    color: white;
+    font-size: 15px;
+}
+
+button:hover {
+    background: #263b69;
+}
+
+.reset {
+    background: #687386;
+}
+
+.message {
+    margin-top: 12px;
+    color: #b42318;
+    font-weight: bold;
+}
+
+.results {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 15px;
+    align-items: start;
+}
+
+.result-card {
+    min-width: 0;
+    margin-bottom: 0;
+}
+
+.result-card.agile {
+    border: 2px solid #344e86;
+}
+
+.result-card h2 {
+    font-size: 20px;
+}
+
+.metrics {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    margin-bottom: 15px;
+}
+
+.metric {
+    background: #edf1fb;
+    padding: 10px;
+    border-radius: 5px;
+}
+
+.metric span {
+    display: block;
+    font-size: 12px;
+    margin-bottom: 5px;
+    color: #52617b;
+}
+
+.metric strong {
+    font-size: 17px;
+    overflow-wrap: anywhere;
+}
+
+.table-wrap {
+    overflow-x: auto;
+}
+
+table {
+    width: 100%;
+    min-width: 570px;
+    border-collapse: collapse;
+    font-size: 13px;
+}
+
+table.wide {
+    min-width: 720px;
+}
+
+th, td {
+    padding: 9px;
+    border: 1px solid #dce2ec;
+    text-align: center;
+}
+
+th {
+    background: #e7ecf7;
+}
+
+.hit {
+    color: #137547;
+    font-weight: bold;
+}
+
+.miss {
+    color: #b42318;
+    font-weight: bold;
+}
+
+.note {
+    color: #5b6577;
+    font-size: 13px;
+    line-height: 1.5;
+}
+
+footer {
+    text-align: center;
+    color: #5b6577;
+    font-size: 13px;
+    margin-top: 20px;
+}
+
+@media (max-width: 900px) {
+    .results {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 600px) {
+    body {
+        padding: 10px;
+    }
+
+    .inputs {
+        grid-template-columns: 1fr;
+    }
+
+    header, section, .result-card {
+        padding: 15px;
+    }
+}
+</style>
+</head>
+
+<body>
+<main>
+
+<header>
+    <p class="project-title">
+        <strong>Agile TLB Prefetching and Prediction Replacement Policy</strong> 
+    </p>
+    <h1>Paging TLB Hit/Miss Analyzer</h1>
+    <p>Virtual Memory Paging and TLB Replacement Policy Simulator</p>
+</header>
+
+<section>
+    <h2>Input Configuration</h2>
+
+    <div class="inputs">
+        <div>
+            <label for="pages">Page Reference Sequence</label>
+            <input id="pages" value="1, 2, 3, 2, 4, 1, 3"
+                   placeholder="Example: 1, 2, 3, 2, 4">
+        </div>
+
+        <div>
+            <label for="capacity">TLB Capacity</label>
+            <input id="capacity" type="number" min="1"
+                   step="1" value="3">
+        </div>
+
+        <div>
+            <label for="tlbTime">TLB Lookup Time (ns)</label>
+            <input id="tlbTime" type="number" min="0"
+                   step="any" value="10">
+        </div>
+
+        <div>
+            <label for="memoryTime">Main Memory Access Time (ns)</label>
+            <input id="memoryTime" type="number" min="0"
+                   step="any" value="100">
+        </div>
+    </div>
+
+    <div class="buttons">
+        <button onclick="runSimulation()">Run Simulation</button>
+        <button class="reset" onclick="resetSimulation()">Reset</button>
+    </div>
+
+    <div id="message" class="message" role="status"></div>
+
+    <p class="note">
+        A hit means the page translation is present in the TLB.
+        A miss means the translation must be obtained from the page table
+        under the simplified timing model used by this project.
+        In the Agile policy, entries marked with * are prefetched pages
+        that have not been used yet.
+    </p>
+</section>
+
+<section>
+    <h2>Performance Comparison</h2>
+    <div id="results" class="results"></div>
+</section>
+
+<footer>
+    Operating System SLA Project | Paging TLB Hit/Miss Analyzer
+</footer>
+
+</main>
+
+<script>
+const POLICY_NAMES = {
+    FIFO: "FIFO Policy",
+    LRU: "LRU Policy",
+    Optimal: "Optimal Policy",
+    Agile: "Agile Prefetch + Prediction Policy"
+};
+
+const PREFETCHER_NAMES = {
+    SEQ: "Sequential",
+    STRIDE: "Stride",
+    HISTORY: "History"
+};
+
+// Chooses the entry that is predicted to be least useful.
+// Class 0: prefetched but not yet used
+// Class 1: loaded on demand and never reused
+// Class 2: reused before (predicted to be reused again)
+function agileVictim(tlb, protectedPage) {
+    let best = -1;
+    let bestClass = 3;
+    let bestUsed = Infinity;
+
+    tlb.forEach((entry, index) => {
+        if (entry.page === protectedPage) {
+            return;
+        }
+
+        const cls = entry.prefetched ? 0 : (entry.reuse === 0 ? 1 : 2);
+
+        if (cls < bestClass ||
+            (cls === bestClass && entry.lastUsed < bestUsed)) {
+            best = index;
+            bestClass = cls;
+            bestUsed = entry.lastUsed;
+        }
+    });
+
+    return { index: best, cls: bestClass };
+}
+
+function simulateAgile(pages, capacity, tlbTime, memoryTime) {
+    const names = ["SEQ", "STRIDE", "HISTORY"];
+    const score = { SEQ: 0, STRIDE: 0, HISTORY: 0 };
+
+    let lastPred = {};
+    let successor = {};
+    let prevPage = null;
+
+    let tlb = [];
+    let rows = [];
+    let hits = 0;
+    let misses = 0;
+    let totalAccessTime = 0;
+    let nextInsertOrder = 0;
+
+    let prefetchIssued = 0;
+    let prefetchUseful = 0;
+    let prefetchSkipped = 0;
+
+    for (let i = 0; i < pages.length; i++) {
+        const page = pages[i];
+        let evictedList = [];
+        let status;
+
+        // Step 1: reward or penalize each prefetcher for its last guess.
+        names.forEach(name => {
+            if (lastPred[name] !== undefined) {
+                score[name] = lastPred[name] === page
+                    ? Math.min(score[name] + 1, 4)
+                    : Math.max(score[name] - 1, -4);
+            }
+        });
+
+        // Step 2: handle the demand reference.
+        const hitIndex = tlb.findIndex(entry => entry.page === page);
+
+        if (hitIndex !== -1) {
+            hits++;
+            status = "Hit";
+
+            const entry = tlb[hitIndex];
+            entry.lastUsed = i;
+            entry.reuse = Math.min(entry.reuse + 1, 3);
+
+            if (entry.prefetched) {
+                entry.prefetched = false;
+                prefetchUseful++;
+            }
+        } else {
+            misses++;
+            status = "Miss";
+
+            if (tlb.length >= capacity) {
+                const victim = agileVictim(tlb, null);
+                evictedList.push(String(tlb[victim.index].page));
+                tlb.splice(victim.index, 1);
+            }
+
+            tlb.push({
+                page: page,
+                inserted: nextInsertOrder++,
+                lastUsed: i,
+                reuse: 0,
+                prefetched: false
+            });
+        }
+
+        // Step 3: every prefetcher predicts the next page.
+        const preds = {
+            SEQ: page + 1,
+            STRIDE: undefined,
+            HISTORY: successor[page]
+        };
+
+        if (prevPage !== null && page !== prevPage) {
+            const guess = page + (page - prevPage);
+            if (guess >= 0) {
+                preds.STRIDE = guess;
+            }
+        }
+
+        if (prevPage !== null) {
+            successor[prevPage] = page;
+        }
+
+        lastPred = preds;
+
+        // Step 4: activate the best prefetcher, or none.
+        let active = "None";
+        let bestScore = 0;
+
+        names.forEach(name => {
+            if (score[name] > bestScore) {
+                bestScore = score[name];
+                active = name;
+            }
+        });
+
+        // Step 5: issue the prefetch if it is safe to do so.
+        let prefetchText = "-";
+
+        if (active !== "None") {
+            const target = preds[active];
+            const label = PREFETCHER_NAMES[active];
+
+            if (target !== undefined &&
+                !tlb.some(entry => entry.page === target)) {
+
+                let canInsert = false;
+
+                if (tlb.length < capacity) {
+                    canInsert = true;
+                } else {
+                    const victim = agileVictim(tlb, page);
+
+                    if (victim.index !== -1 && victim.cls < 2) {
+                        evictedList.push(
+                            tlb[victim.index].page + " (prefetch)"
+                        );
+                        tlb.splice(victim.index, 1);
+                        canInsert = true;
+                    }
+                }
+
+                if (canInsert) {
+                    tlb.push({
+                        page: target,
+                        inserted: nextInsertOrder++,
+                        lastUsed: i,
+                        reuse: 0,
+                        prefetched: true
+                    });
+                    prefetchIssued++;
+                    prefetchText = "Page " + target + " (" + label + ")";
+                } else {
+                    prefetchSkipped++;
+                    prefetchText = "Skipped " + target + " (" + label + ")";
+                }
+            }
+        }
+
+        prevPage = page;
+
+        const accessTime = status === "Hit"
+            ? tlbTime + memoryTime
+            : tlbTime + 2 * memoryTime;
+
+        totalAccessTime += accessTime;
+
+        rows.push({
+            reference: i + 1,
+            page: page,
+            status: status,
+            evicted: evictedList.length ? evictedList.join(", ") : "-",
+            contents: tlb
+                .map(entry => entry.page + (entry.prefetched ? "*" : ""))
+                .join(", "),
+            prefetch: prefetchText,
+            accessTime: accessTime
+        });
+    }
+
+    const total = pages.length;
+
+    return {
+        policy: "Agile",
+        rows,
+        total,
+        hits,
+        misses,
+        hitRatio: hits / total,
+        missRatio: misses / total,
+        averageEAT: totalAccessTime / total,
+        hasPrefetch: true,
+        prefetchIssued,
+        prefetchUseful,
+        prefetchSkipped
+    };
+}
+
+function simulate(pages, capacity, policy, tlbTime, memoryTime) {
+    if (policy === "Agile") {
+        return simulateAgile(pages, capacity, tlbTime, memoryTime);
+    }
+
+    let tlb = [];
+    let rows = [];
+    let hits = 0;
+    let misses = 0;
+    let totalAccessTime = 0;
+    let nextInsertOrder = 0;
+
+    for (let i = 0; i < pages.length; i++) {
+        const page = pages[i];
+        let hitIndex = tlb.findIndex(entry => entry.page === page);
+        let status;
+        let evicted = "-";
+
+        if (hitIndex !== -1) {
+            // The requested page is already in the TLB.
+            hits++;
+            status = "Hit";
+
+            if (policy === "LRU") {
+                tlb[hitIndex].lastUsed = i;
+            }
+        } else {
+            // The requested page is not in the TLB.
+            misses++;
+            status = "Miss";
+
+            if (tlb.length >= capacity) {
+                let removeIndex = 0;
+
+                if (policy === "FIFO") {
+                    // Remove the entry inserted earliest.
+                    removeIndex = tlb.reduce(
+                        (oldest, entry, index, array) =>
+                            entry.inserted < array[oldest].inserted
+                                ? index : oldest,
+                        0
+                    );
+                }
+
+                if (policy === "LRU") {
+                    // Remove the entry used least recently.
+                    removeIndex = tlb.reduce(
+                        (least, entry, index, array) =>
+                            entry.lastUsed < array[least].lastUsed
+                                ? index : least,
+                        0
+                    );
+                }
+
+                if (policy === "Optimal") {
+                    // Remove the entry whose next use is farthest away.
+                    let farthest = -1;
+
+                    for (let j = 0; j < tlb.length; j++) {
+                        let nextUse = pages.indexOf(tlb[j].page, i + 1);
+
+                        if (nextUse === -1) {
+                            removeIndex = j;
+                            farthest = Infinity;
+                            break;
+                        }
+
+                        if (nextUse > farthest) {
+                            farthest = nextUse;
+                            removeIndex = j;
+                        }
+                    }
+                }
+
+                evicted = tlb[removeIndex].page;
+                tlb.splice(removeIndex, 1);
+            }
+
+            tlb.push({
+                page: page,
+                inserted: nextInsertOrder++,
+                lastUsed: i
+            });
+        }
+
+        const accessTime = status === "Hit"
+            ? tlbTime + memoryTime
+            : tlbTime + 2 * memoryTime;
+
+        totalAccessTime += accessTime;
+
+        rows.push({
+            reference: i + 1,
+            page: page,
+            status: status,
+            evicted: evicted,
+            contents: tlb.map(entry => entry.page).join(", "),
+            accessTime: accessTime
+        });
+    }
+
+    const total = pages.length;
+    const hitRatio = hits / total;
+    const missRatio = misses / total;
+
+    return {
+        policy,
+        rows,
+        total,
+        hits,
+        misses,
+        hitRatio,
+        missRatio,
+        averageEAT: totalAccessTime / total,
+        hasPrefetch: false
+    };
+}
+
+function renderResult(result) {
+    const card = document.createElement("div");
+    card.className = "result-card" + (result.hasPrefetch ? " agile" : "");
+
+    const heading = document.createElement("h2");
+    heading.textContent = POLICY_NAMES[result.policy];
+    card.appendChild(heading);
+
+    const metrics = document.createElement("div");
+    metrics.className = "metrics";
+
+    const metricData = [
+        ["References", result.total],
+        ["TLB Hits", result.hits],
+        ["TLB Misses", result.misses],
+        ["Hit Ratio", (result.hitRatio * 100).toFixed(2) + "%"],
+        ["Miss Ratio", (result.missRatio * 100).toFixed(2) + "%"],
+        ["Average EAT", result.averageEAT.toFixed(2) + " ns"]
+    ];
+
+    if (result.hasPrefetch) {
+        const accuracy = result.prefetchIssued === 0
+            ? "N/A"
+            : ((result.prefetchUseful / result.prefetchIssued) * 100)
+                .toFixed(2) + "%";
+
+        metricData.push(
+            ["Prefetches Issued", result.prefetchIssued],
+            ["Useful Prefetches", result.prefetchUseful],
+            ["Prefetch Accuracy", accuracy],
+            ["Prefetches Skipped", result.prefetchSkipped]
+        );
+    }
+
+    metricData.forEach(([label, value]) => {
+        const box = document.createElement("div");
+        box.className = "metric";
+
+        const name = document.createElement("span");
+        name.textContent = label;
+
+        const number = document.createElement("strong");
+        number.textContent = value;
+
+        box.append(name, number);
+        metrics.appendChild(box);
+    });
+
+    card.appendChild(metrics);
+
+    const wrap = document.createElement("div");
+    wrap.className = "table-wrap";
+
+    const table = document.createElement("table");
+    if (result.hasPrefetch) {
+        table.className = "wide";
+    }
+
+    const thead = document.createElement("thead");
+    const headerRow = document.createElement("tr");
+
+    const headers = [
+        "Ref. No.", "Page", "Status", "Evicted Page", "TLB Contents"
+    ];
+
+    if (result.hasPrefetch) {
+        headers.push("Prefetch");
+    }
+
+    headers.push("Access Time (ns)");
+
+    headers.forEach(label => {
+        const th = document.createElement("th");
+        th.textContent = label;
+        headerRow.appendChild(th);
+    });
+
+    thead.appendChild(headerRow);
+    table.appendChild(thead);
+
+    const tbody = document.createElement("tbody");
+
+    result.rows.forEach(row => {
+        const tr = document.createElement("tr");
+
+        const values = [
+            row.reference,
+            row.page,
+            row.status,
+            row.evicted,
+            row.contents
+        ];
+
+        if (result.hasPrefetch) {
+            values.push(row.prefetch);
+        }
+
+        values.push(row.accessTime.toFixed(2));
+
+        values.forEach((value, index) => {
+            const td = document.createElement("td");
+            td.textContent = value;
+
+            if (index === 2) {
+                td.className = row.status === "Hit" ? "hit" : "miss";
+            }
+
+            tr.appendChild(td);
+        });
+
+        tbody.appendChild(tr);
+    });
+
+    table.appendChild(tbody);
+    wrap.appendChild(table);
+    card.appendChild(wrap);
+
+    return card;
+}
+
+function runSimulation() {
+    const message = document.getElementById("message");
+    const results = document.getElementById("results");
+    message.textContent = "";
+    results.replaceChildren();
+
+    const pageText = document.getElementById("pages").value.trim();
+    const capacityValue = document.getElementById("capacity").value;
+    const tlbValue = document.getElementById("tlbTime").value;
+    const memoryValue = document.getElementById("memoryTime").value;
+
+    if (!pageText) {
+        message.textContent = "Enter a page reference sequence.";
+        return;
+    }
+
+    const parts = pageText.split(",").map(value => value.trim());
+
+    if (parts.some(value => value === "" || !/^\d+$/.test(value))) {
+        message.textContent =
+            "Enter valid non-negative page numbers separated by commas.";
+        return;
+    }
+
+    const pages = parts.map(Number);
+    const capacity = Number(capacityValue);
+    const tlbTime = Number(tlbValue);
+    const memoryTime = Number(memoryValue);
+
+    if (!capacityValue || !Number.isInteger(capacity) || capacity < 1) {
+        message.textContent = "TLB capacity must be a positive integer.";
+        return;
+    }
+
+    if (tlbValue === "" || !Number.isFinite(tlbTime) || tlbTime < 0 ||
+        memoryValue === "" || !Number.isFinite(memoryTime) ||
+        memoryTime < 0) {
+        message.textContent =
+            "Access times must be valid non-negative numbers.";
+        return;
+    }
+
+    const policies = ["FIFO", "LRU", "Optimal", "Agile"];
+
+    policies.forEach(policy => {
+        const result = simulate(
+            pages, capacity, policy, tlbTime, memoryTime
+        );
+        results.appendChild(renderResult(result));
+    });
+}
+
+function resetSimulation() {
+    document.getElementById("pages").value = "1, 2, 3, 2, 4, 1, 3";
+    document.getElementById("capacity").value = 3;
+    document.getElementById("tlbTime").value = 10;
+    document.getElementById("memoryTime").value = 100;
+    document.getElementById("message").textContent = "";
+    document.getElementById("results").replaceChildren();
+    runSimulation();
+}
+
+// Display the default example when the page loads.
+runSimulation();
+</script>
+
+</body>
+</html>
